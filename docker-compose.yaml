@@ -1,0 +1,16 @@
+version: '3.7'
+
+services:
+  postgres:
+    container_name: cryptodb
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DBMS_USER:-postgres}
+      POSTGRES_PASSWORD: ${DBMS_PASSWORD:-postgres}
+      POSTGRES_DB: ${DBMS_DB_NAME:-default}
+    volumes:
+      - "./db/init.sql:/docker-entrypoint-initdb.d/init.sql"
+      - "./db/data:/var/lib/postgresql/data"
+    ports:
+      - "5432:5432"
