@@ -22,10 +22,13 @@ type DbmsProvider struct {
 	ctx        *context.Context
 	Db         *sqlx.DB
 	LastCrypto *Rate
-	LastFiat   struct {
-		Rates *[]Rate
-		Time  *time.Time
-	}
+	LastFiat   *LastFiat
+}
+
+type LastFiat struct {
+	Rates  *[]Rate
+	UsdRub *float32
+	Time   *time.Time
 }
 
 func NewDbmsProvider(ctx *context.Context, cfg *config.Dbms) (dbp *DbmsProvider) {

@@ -2,7 +2,6 @@ package apirequester
 
 import (
 	"encoding/xml"
-	"fmt"
 	"github.com/capsulated/x-tech/dbmsprovider"
 	"strconv"
 	"strings"
@@ -25,7 +24,7 @@ type FiatResponse struct {
 	} `xml:"Valute"`
 }
 
-func (f *FiatResponse) ToRates() (*[]dbmsprovider.Rate, *time.Time, error) {
+func (f *FiatResponse) ToFiatRates() (*[]dbmsprovider.Rate, *time.Time, error) {
 	t, err := time.Parse("02.01.2006", f.Date)
 	if err != nil {
 		return nil, nil, err
@@ -33,23 +32,32 @@ func (f *FiatResponse) ToRates() (*[]dbmsprovider.Rate, *time.Time, error) {
 
 	var rates []dbmsprovider.Rate
 	for _, v := range f.Valute {
-		var rate int64
-		rate, err = strconv.ParseInt(
-			fmt.Sprintf("%s000", strings.Replace(v.Value, ",", "", 1)),
-			10,
-			64,
+		rate, err := strconv.ParseFloat(
+			strings.Replace(v.Value, ",", ".", 1), 64,
 		)
 		if err != nil {
 			return nil, nil, err
 		}
 
+		nominal, err := strconv.ParseFloat(v.Nominal, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		rates = append(rates, dbmsprovider.Rate{
-			Time:         t,
-			TickerSource: v.CharCode,
-			TickerTarget: "RUB",
-			Rate:         rate,
+			Time:     t,
+			Base:     v.CharCode,
+			Currency: "RUB",
+			Rate:     float32(rate / nominal),
 		})
 	}
+
+	rates = append(rates, dbmsprovider.Rate{
+		Time:     t,
+		Base:     "RUB",
+		Currency: "RUB",
+		Rate:     1,
+	})
 
 	return &rates, &t, nil
 }

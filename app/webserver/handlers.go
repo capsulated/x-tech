@@ -1,42 +1,50 @@
 package webserver
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"strconv"
 )
 
 func (w *WebServer) cryptoCurrentValue(c *fiber.Ctx) error {
-	return c.JSON(w.dbmsProvider.LastCrypto)
+	return c.SendString(fmt.Sprintf("%g", w.dbmsProvider.LastCrypto.Rate))
 }
 
 func (w *WebServer) cryptoHistory(c *fiber.Ctx) error {
-	start, err := strconv.ParseInt(c.Query("start"), 10, 16)
-	end, err := strconv.ParseInt(c.Query("end"), 10, 16)
-	offset, err := strconv.ParseInt(c.Query("offset"), 10, 16)
-	limit, err := strconv.ParseInt(c.Query("limit"), 10, 16)
+	start := c.Query("start")
+	end := c.Query("end")
+	offset := c.Query("offset")
+	limit := c.Query("limit")
 
-	if err != nil || c.Query("start") == "" || c.Query("end") == "" || c.Query("offset") == "" || c.Query("limit") == "" {
+	if start == "" || end == "" || offset == "" || limit == "" {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	rates, total, err := w.dbmsProvider.SelectRangeCryptoRates(int16(start), int16(end), int16(offset), int16(limit))
+	rates, total, err := w.dbmsProvider.SelectRangeCryptoRates(start, end, offset, limit)
 	if err != nil {
-		log.Printf("dbmsProvider.SelectRangeCryptoRates() start %d, end %d, offset %d, limit %d err: %s",
-			start, end, offset, limit, err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
 	var history []CryptoHistory
 	for _, r := range *rates {
 		timestamp := r.Time.Unix()
-		value := float64(r.Rate) / 1000
-		history = append(history, CryptoHistory{timestamp, value})
+		datetime := r.Time.Format("2006-01-02 15:04:05")
+		history = append(history, CryptoHistory{timestamp, datetime, r.Rate})
+	}
+
+	o, err := strconv.ParseUint(offset, 10, 16)
+	if err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}
+	l, err := strconv.ParseUint(limit, 10, 16)
+	if err != nil {
+		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
 	resp := &CryptoHistoryResponse{
-		Offset:  int16(offset),
-		Limit:   int16(offset),
+		Offset:  uint16(o),
+		Limit:   uint16(l),
 		Total:   total,
 		History: &history,
 	}
@@ -45,46 +53,48 @@ func (w *WebServer) cryptoHistory(c *fiber.Ctx) error {
 }
 
 func (w *WebServer) fiatCurrentValue(c *fiber.Ctx) error {
-	return c.JSON(w.dbmsProvider.LastFiat)
+	fiatRate := make(map[string]float32)
+	log.Printf("%#v", w.dbmsProvider.LastFiat)
+	for _, r := range *w.dbmsProvider.LastFiat.Rates {
+		fiatRate[r.Base] = r.Rate
+	}
+	return c.JSON(fiatRate)
 }
 
 func (w *WebServer) fiatHistory(c *fiber.Ctx) error {
 	start := c.Query("start")
 	end := c.Query("end")
-	offset, err := strconv.ParseInt(c.Query("offset"), 10, 16)
-	limit, err := strconv.ParseInt(c.Query("limit"), 10, 16)
 
-	if err != nil || start == "" || end == "" || c.Query("offset") == "" || c.Query("limit") == "" {
+	if start == "" || end == "" {
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	_, total, err := w.dbmsProvider.SelectRangeFiatRates(start, end, int16(offset), int16(limit))
+	rates, err := w.dbmsProvider.SelectRangeFiatRates(start, end)
 	if err != nil {
-		log.Printf("dbmsProvider.SelectRangeCryptoRates() start %s, end %s, offset %d, limit %d err: %s",
-			start, end, offset, limit, err)
 		return c.SendStatus(fiber.StatusInternalServerError)
 	}
 
-	var history []FiatHistory
-
-	// Sort for FiatHistory with time and FiatRate
-	//for _, r := range *rates {
-	//	timestamp := r.Time.Unix()
-	//	FiatRat
-	//	history = append(history, FiatHistory{timestamp, value})
-	//}
-
-	resp := &FiatHistoryResponse{
-		Offset:  int16(offset),
-		Limit:   int16(offset),
-		Total:   total,
-		History: &history,
+	fiatHistoryResponse := &FiatHistoryResponse{
+		History: make(map[string]map[string]float32),
 	}
-	// todo get last fiat value by time range
+	for _, rate := range *rates {
+		date := rate.Time.Format("2006-01-02")
+		if _, ok := fiatHistoryResponse.History[date]; !ok {
+			fiatHistoryResponse.History[date] = make(map[string]float32)
+		}
+		fiatHistoryResponse.History[date][rate.Base] = rate.Rate
+	}
+	fiatHistoryResponse.Total = uint16(len(fiatHistoryResponse.History))
 
-	return c.JSON(resp)
+	return c.JSON(fiatHistoryResponse)
 }
 
-func (*WebServer) latestRate(c *fiber.Ctx) error {
-	return c.SendString("latestRate")
+func (w *WebServer) latestRate(c *fiber.Ctx) error {
+	cryptoFiatResponse := make(CryptoFiatResponse)
+
+	for _, r := range *w.dbmsProvider.LastFiat.Rates {
+		cryptoFiatResponse[r.Base] = w.dbmsProvider.LastCrypto.Rate * (*w.dbmsProvider.LastFiat.UsdRub / r.Rate)
+	}
+
+	return c.JSON(cryptoFiatResponse)
 }

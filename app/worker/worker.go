@@ -76,24 +76,33 @@ func (w *Worker) cryptoWork() {
 
 func (w *Worker) fiatWork() {
 	log.Println("fiat work...")
-	rates, t, err := w.apiRequester.FiatRequest()
+	rates, ratesTime, err := w.apiRequester.FiatRequest()
 	if err != nil {
 		return
 	}
 
-	if w.dbmsProvider.LastFiat.Time != nil && *t == *w.dbmsProvider.LastFiat.Time {
+	if w.dbmsProvider.LastFiat != nil && *ratesTime == *w.dbmsProvider.LastFiat.Time {
 		log.Println("fiat last updated time the same, return")
 		return
 	}
 
+	var usdRub float32
 	for _, rate := range *rates {
+		// todo add enums for currencies
+		if rate.Base == "USD" {
+			usdRub = rate.Rate
+		}
 		err = w.dbmsProvider.InsertFiatRate(&rate)
 		if err != nil {
 			return
 		}
 	}
-	w.dbmsProvider.LastFiat.Rates = rates
-	w.dbmsProvider.LastFiat.Time = t
+
+	w.dbmsProvider.LastFiat = &dbmsprovider.LastFiat{
+		Rates:  rates,
+		UsdRub: &usdRub,
+		Time:   ratesTime,
+	}
 
 	log.Println("fiat work success!")
 }

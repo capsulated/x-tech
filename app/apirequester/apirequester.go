@@ -78,20 +78,20 @@ func (a *ApiRequester) FiatRequest() (*[]dbmsprovider.Rate, *time.Time, error) {
 		return nil, nil, err
 	}
 
-	f := &FiatResponse{}
+	fiatResponse := &FiatResponse{}
 	decoder := xml.NewDecoder(resp.Body)
 	decoder.CharsetReader = charset.NewReaderLabel
-	err = decoder.Decode(&f)
+	err = decoder.Decode(&fiatResponse)
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, err
 	}
 
-	r, t, err := f.ToRates()
+	rates, ratesTime, err := fiatResponse.ToFiatRates()
 	if err != nil {
 		log.Println("err:", err)
 		return nil, nil, err
 	}
 
-	return r, t, nil
+	return rates, ratesTime, nil
 }

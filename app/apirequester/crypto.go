@@ -2,7 +2,6 @@ package apirequester
 
 import (
 	"github.com/capsulated/x-tech/dbmsprovider"
-	"log"
 	"strconv"
 	"time"
 )
@@ -30,20 +29,15 @@ type CryptoResponse struct {
 }
 
 func (c *CryptoResponse) ToRate() (*dbmsprovider.Rate, error) {
-	rate, err := strconv.ParseFloat(
-		c.Data.Last,
-		64,
-	)
+	rate, err := strconv.ParseFloat(c.Data.Last, 32)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println("rate", rate)
-	log.Println("rate * 10000", int64(rate*10000))
 	return &dbmsprovider.Rate{
-		Time:         time.UnixMilli(c.Data.Time),
-		TickerSource: "BTC",
-		TickerTarget: "USDT",
-		Rate:         int64(rate * 10000),
+		Time:     time.UnixMilli(c.Data.Time),
+		Base:     "BTC",
+		Currency: "USDT",
+		Rate:     float32(rate),
 	}, nil
 }

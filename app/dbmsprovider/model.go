@@ -5,8 +5,8 @@ import (
 )
 
 type Rate struct {
-	Time         time.Time `db:"created_at"`
-	TickerSource string    `db:"ticker_source"`
-	TickerTarget string    `db:"ticker_target"`
-	Rate         int64     `db:"rate"`
+	Time     time.Time `db:"time"`
+	Currency string    `db:"currency"`
+	Base     string    `db:"base"`
+	Rate     float32   `db:"rate"`
 }
