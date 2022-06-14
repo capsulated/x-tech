@@ -1,48 +1,30 @@
 package config
 
-import (
-	"github.com/spf13/viper"
-	"log"
-	"os"
-	"path/filepath"
-)
+import "os"
 
 func NewConfig() (c Config) {
-	wd, err := os.Getwd()
-	if err != nil {
-		log.Fatalln(err)
+	api := &Api{
+		os.Getenv("API_CRYPTO_SOURCE_URL"),
+		os.Getenv("API_FIAT_SOURCE_URL"),
 	}
 
-	viper.SetConfigFile(filepath.Dir(wd) + "/.env")
-	viper.AutomaticEnv()
-
-	err = viper.ReadInConfig()
-	if err != nil {
-		log.Fatalln(err)
+	srv := &Server{
+		os.Getenv("SERVER_HOST"),
+		os.Getenv("SERVER_PORT"),
 	}
 
-	api := &Api{}
-	err = viper.Unmarshal(&api)
-	if err != nil {
-		log.Fatalln(err)
+	db := &Dbms{
+		os.Getenv("DBMS_DRIVER"),
+		os.Getenv("DBMS_HOST"),
+		os.Getenv("DBMS_PORT"),
+		os.Getenv("DBMS_USER"),
+		os.Getenv("DBMS_PASSWORD"),
+		os.Getenv("DBMS_DB_NAME"),
 	}
 
-	srv := &Server{}
-	err = viper.Unmarshal(&srv)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	db := &Dbms{}
-	err = viper.Unmarshal(&db)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	crn := &Cron{}
-	err = viper.Unmarshal(&crn)
-	if err != nil {
-		log.Fatalln(err)
+	crn := &Cron{
+		os.Getenv("CRON_CRYPTO"),
+		os.Getenv("CRON_FIAT"),
 	}
 
 	return Config{*api, *srv, *db, *crn}

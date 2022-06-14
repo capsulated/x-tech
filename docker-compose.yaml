@@ -1,11 +1,29 @@
 version: '3.7'
 
 services:
+  app:
+    container_name: x_tech_app
+    build: ./app
+    restart: always
+    env_file:
+      - ".env"
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://localhost:3101/loki/api/v1/push"
+        loki-external-labels: "job=app,owner=logiq,environment=development"
+    depends_on:
+      - postgres
+
   postgres:
-    container_name: cryptodb
+    container_name: x_tech_db
     image: postgres
     restart: always
     environment:
+      POSTGRES_HOST: ${DBMS_HOST:-postgres}
+      POSTGRES_PORT: ${DBMS_PORT:-postgres}
       POSTGRES_USER: ${DBMS_USER:-postgres}
       POSTGRES_PASSWORD: ${DBMS_PASSWORD:-postgres}
       POSTGRES_DB: ${DBMS_DB_NAME:-default}
@@ -14,3 +32,28 @@ services:
       - "./db/data:/var/lib/postgresql/data"
     ports:
       - "5432:5432"
+
+  grafana:
+    container_name: x_tech_grafana
+    image: grafana/grafana:latest
+    restart: always
+    volumes:
+      - "./grafana/grafana.ini:/etc/grafana/grafana.ini"
+      - "./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yaml"
+      - "./grafana/data:/var/lib/grafana"
+    ports:
+      - "3000:3000"
+
+  loki:
+    container_name: x_tech_loki
+    image: grafana/loki:2.0.0
+    command: -config.file=/mnt/config/config.yml
+    restart: always
+    volumes:
+      - "./loki/config.yml:/mnt/config/config.yml"
+      - "./loki/data:/loki"
+    ports:
+      - "3100:3100"
+    depends_on:
+      - app
+      - postgres

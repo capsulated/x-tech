@@ -1,3 +1,5 @@
 .idea
 .DS_Store
-db/data
+/db/data
+/loki/data
+/grafana/data

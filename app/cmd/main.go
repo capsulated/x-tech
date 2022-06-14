@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(log.Ldate | log.Lmicroseconds | log.Llongfile)
 
 	cfg := config.NewConfig()
 
